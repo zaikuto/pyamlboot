@@ -1,0 +1,104 @@
+{
+  "ignition": {
+    "version": "3.5.0"
+  },
+  "passwd": {
+    "users": [
+      {
+        "name": "core",
+        "sshAuthorizedKeys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIN1DP0SWQRmHW/PP4GcOqORpiOl8Nud3PcGz7uEoTR9s vmanhktv@gmail.com"
+        ]
+      },
+      {
+        "groups": [
+          "wheel",
+          "docker",
+          "systemd-journal"
+        ],
+        "name": "zaikuto",
+        "sshAuthorizedKeys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEAXGv73E+dzSobhrPH7RZXJhP22YZWsONfjA2gBVujx vmanhktv@gmail.com"
+        ],
+        "shell": "/bin/bash"
+      },
+      {
+        "name": "ztenk",
+        "passwordHash": "e2407dda2f61cd529e3c4dcc85615de697497ad0599dcf45d1169724d2878593"
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "overwrite": true,
+        "path": "/etc/hostname",
+        "contents": {
+          "compression": "",
+          "source": "data:,local"
+        },
+        "mode": 420
+      },
+      {
+        "path": "/etc/ssh/sshd_config.d/20-enable-passwords.conf",
+        "contents": {
+          "compression": "",
+          "source": "data:,%23%20Fedora%20CoreOS%20disables%20SSH%20password%20login%20by%20default.%0A%23%20Enable%20it.%0A%23%20This%20file%20must%20sort%20before%2040-disable-passwords.conf.%0APasswordAuthentication%20yes%0A"
+        },
+        "mode": 420
+      }
+    ],
+    "links": [
+      {
+        "overwrite": true,
+        "path": "/etc/alternatives/iptables",
+        "hard": false,
+        "target": "/usr/sbin/iptables-legacy"
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/alternatives/iptables-restore",
+        "hard": false,
+        "target": "/usr/sbin/iptables-legacy-restore"
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/alternatives/iptables-save",
+        "hard": false,
+        "target": "/usr/sbin/iptables-legacy-save"
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/alternatives/ip6tables",
+        "hard": false,
+        "target": "/usr/sbin/ip6tables-legacy"
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/alternatives/ip6tables-restore",
+        "hard": false,
+        "target": "/usr/sbin/ip6tables-legacy-restore"
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/alternatives/ip6tables-save",
+        "hard": false,
+        "target": "/usr/sbin/ip6tables-legacy-save"
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "contents": "[Unit]\nDescription=Run single node etcd\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nExecStartPre=mkdir -p /var/lib/etcd\nExecStartPre=-/bin/podman kill etcd\nExecStartPre=-/bin/podman rm etcd\nExecStartPre=-/bin/podman pull quay.io/coreos/etcd\nExecStart=/bin/podman run --name etcd --volume /var/lib/etcd:/etcd-data:z --net=host quay.io/coreos/etcd:latest /usr/local/bin/etcd --data-dir /etcd-data --name node1 \\\n        --initial-advertise-peer-urls http://127.0.0.1:2380 --listen-peer-urls http://127.0.0.1:2380 \\\n        --advertise-client-urls http://127.0.0.1:2379 \\\n        --listen-client-urls http://127.0.0.1:2379 \\\n        --initial-cluster node1=http://127.0.0.1:2380\n\nExecStop=/bin/podman stop etcd\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "etcd-member.service"
+      },
+      {
+        "contents": "[Unit]\nDescription=Install Docker CE\nWants=network-online.target\nAfter=network-online.target\nBefore=zincati.service\nConditionPathExists=!/var/lib/%N.stamp\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/bin/curl --output-dir \"/etc/yum.repos.d\" --remote-name https://download.docker.com/linux/fedora/docker-ce.repo\nExecStart=/usr/bin/rpm-ostree override remove moby-engine containerd runc docker-cli --install docker-ce\nExecStart=/usr/bin/touch /var/lib/%N.stamp\nExecStart=/usr/bin/systemctl --no-block reboot\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "rpm-ostree-install-docker-ce.service"
+      }
+    ]
+  }
+}
